@@ -8,24 +8,31 @@ void setup()
 
 int myLEDPins[] = {11, 12, 13, 14}; // Array of LED pins
 int myNumPins = 3;                  // Number of LED pins in the array
-int myFadeDuration = 5000;          // 5 seconds
+int myFadeDuration = 1000;          // 5 seconds
 
 void loop()
 {
-  if (getSwitchValue())
+  // if (getSwitchValue())
+  if (state == off)
   {
     turnOffAll();
   }
-  else if (getKnobValue() <= 341)
+  // else if (knobValue <= 341)
+  else if (state == calm)
   {
+    // state = calm;
     calmMode();
   }
-  else if (getKnobValue() > 341 && getKnobValue() <= 682)
+  // else if (knobValue > 341 && knobValue <= 682)
+  else if (state == party)
   {
+    // state = party;
     partyMode();
   }
-  else if (getKnobValue() > 682 && getKnobValue() <= 1023)
+  // else if (knobValue > 682 && knobValue <= 1023)
+  else if (state == lamp)
   {
+    // state = lamp;
     turnOnAll();
   }
 }
@@ -44,7 +51,6 @@ void calmMode()
   delay(1000);
   fadeDownArray(myLEDPins, sizeof(myLEDPins), 1000);
   delay(1000);
-  setChangedFalse();
 }
 
 void partyMode()
