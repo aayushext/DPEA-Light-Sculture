@@ -9,10 +9,10 @@ namespace
 
     // Define the minimum and maximum brightness values
     const int MIN_BRIGHTNESS = 0;
-    const int MAX_BRIGHTNESS = 150;
+    const int MAX_BRIGHTNESS = 256;
 
-    // Calculate the duration of each step in microseconds
-    unsigned long stepDuration = 1000UL;
+    // Define the number of steps between minimum and maximum brightness
+    const int NUM_STEPS = 100;
 
     void privateTurnOnAll()
     {
@@ -27,30 +27,6 @@ namespace
         for (int ledNum = 2; ledNum <= 15; ledNum++)
         {
             digitalWrite(ledNum, LOW);
-        }
-    }
-
-    void changeState()
-    {
-        if (getSwitchValue())
-        {
-            state = off;
-        }
-
-        if (state == changing)
-        {
-            if (knobValue <= 341)
-            {
-                state = calm;
-            }
-            else if (knobValue > 341 && knobValue <= 682)
-            {
-                state = party;
-            }
-            else if (knobValue > 682 && knobValue <= 1023)
-            {
-                state = lamp;
-            }
         }
     }
 }
@@ -81,23 +57,44 @@ bool getSwitchValue()
 
 void updateMode()
 {
-    if (analogRead(knobPin) > (knobPin + 4) || analogRead(knobPin) < (knobPin - 4))
+    if (analogRead(knobPin) > (knobValue + 5) || analogRead(knobPin) < (knobValue - 5))
     {
         state = changing;
     }
 
     knobValue = analogRead(knobPin);
 
-    changeState();
+    Serial.println(state);
 
-    // Serial.println(state);
-    // Serial.println(knobValue);
+    if (getSwitchValue())
+    {
+        state = off;
+    }
+
+    if (state == changing)
+    {
+        if (knobValue <= 341)
+        {
+            state = calm;
+        }
+        else if (knobValue > 341 && knobValue <= 682)
+        {
+            state = party;
+        }
+        else if (knobValue > 682 && knobValue <= 1023)
+        {
+            state = lamp;
+        }
+    }
 }
 
 void fadeUp(int ledPin, int fadeDuration)
 {
+    // Calculate the duration of each step in microseconds
+    unsigned long stepDuration = fadeDuration * 1000UL / NUM_STEPS;
+
     // Loop through all the steps
-    for (int i = 0; i < fadeDuration; i++)
+    for (int i = 0; i < NUM_STEPS; i++)
     {
         updateMode();
         if (state == changing || state == off)
@@ -106,11 +103,12 @@ void fadeUp(int ledPin, int fadeDuration)
         }
 
         // Calculate the current brightness value
-        int brightness = map(i, 0, fadeDuration, MIN_BRIGHTNESS, MAX_BRIGHTNESS);
+        int brightness = map(i, 0, NUM_STEPS, MIN_BRIGHTNESS, MAX_BRIGHTNESS);
 
         // Set the LED brightness using a timer-based approach
         unsigned long onTime = (unsigned long)brightness * stepDuration / MAX_BRIGHTNESS;
         unsigned long offTime = stepDuration - onTime;
+
         digitalWrite(ledPin, HIGH);
         delayMicroseconds(onTime);
         digitalWrite(ledPin, LOW);
@@ -122,8 +120,11 @@ void fadeUp(int ledPin, int fadeDuration)
 
 void fadeUpAll(int fadeDuration)
 {
+    // Calculate the duration of each step in microseconds
+    unsigned long stepDuration = fadeDuration * 1000UL / NUM_STEPS;
+
     // Loop through all the steps
-    for (int i = 0; i < fadeDuration; i++)
+    for (int i = 0; i < NUM_STEPS; i++)
     {
         updateMode();
         if (state == changing || state == off)
@@ -132,14 +133,11 @@ void fadeUpAll(int fadeDuration)
         }
 
         // Calculate the current brightness value
-        // int brightness = (i - 0) * (MAX_BRIGHTNESS - MIN_BRIGHTNESS);
-        int brightness = map(i, 0, fadeDuration, MIN_BRIGHTNESS, MAX_BRIGHTNESS);
+        int brightness = map(i, 0, NUM_STEPS, MIN_BRIGHTNESS, MAX_BRIGHTNESS);
 
         // Set the LED brightness using a timer-based approach
         unsigned long onTime = (unsigned long)brightness * stepDuration / MAX_BRIGHTNESS;
         unsigned long offTime = stepDuration - onTime;
-
-        Serial.println(offTime);
 
         privateTurnOnAll();
         delayMicroseconds(onTime);
@@ -147,18 +145,18 @@ void fadeUpAll(int fadeDuration)
         delayMicroseconds(offTime);
     }
 
-    //     long map(long x, long in_min, long in_max, long out_min, long out_max)
-    // {
-    //   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-    // }
-
     privateTurnOnAll();
 }
 
-void fadeUpAllSpecific(int startPin, int endPin, int fadeDuration)
+void crossfade(int upPin, int downPin, int fadeDuration)
 {
+    // Calculate the duration of each step in microseconds
+    unsigned long stepDuration = fadeDuration * 1000UL / NUM_STEPS;
+
+    digitalWrite(downPin, HIGH);
+
     // Loop through all the steps
-    for (int i = 0; i < fadeDuration; i++)
+    for (int i = 0; i < NUM_STEPS; i++)
     {
         updateMode();
         if (state == changing || state == off)
@@ -167,27 +165,25 @@ void fadeUpAllSpecific(int startPin, int endPin, int fadeDuration)
         }
 
         // Calculate the current brightness value
-        int brightness = map(i, 0, fadeDuration, MIN_BRIGHTNESS, MAX_BRIGHTNESS);
+        int brightness = map(i, 0, NUM_STEPS, MIN_BRIGHTNESS, MAX_BRIGHTNESS);
 
-        // Loop through all the LED pins
-        // for (int pin = startPin; pin <= endPin; pin++)
-        // {
         // Set the LED brightness using a timer-based approach
         unsigned long onTime = (unsigned long)brightness * stepDuration / MAX_BRIGHTNESS;
         unsigned long offTime = stepDuration - onTime;
-        // digitalWrite(pin, HIGH);
-        turnOnAll();
+
+        digitalWrite(upPin, HIGH);
+        digitalWrite(downPin, LOW);
         delayMicroseconds(onTime);
-        // digitalWrite(pin, LOW);
-        turnOffAll();
+        digitalWrite(upPin, LOW);
+        digitalWrite(downPin, HIGH);
         delayMicroseconds(offTime);
-        // }
     }
 
-    turnOnAll();
+    digitalWrite(upPin, HIGH);
+    digitalWrite(downPin, LOW);
 }
 
-void fadeUpArray(int ledPins[], int numPins, int fadeDuration)
+void fadeUpArray(int ledPins[], int numPins, int fadeDuration, int delayInBetween = 500)
 {
     // Loop through all the steps
     for (int i = 0; i < numPins; i++)
@@ -200,13 +196,17 @@ void fadeUpArray(int ledPins[], int numPins, int fadeDuration)
 
         // Set the brightness of all the LEDs in the array using the fadeLED function
         fadeUp(ledPins[i], fadeDuration);
+        delay(delayInBetween);
     }
 }
 
 void fadeDown(int ledPin, int fadeDuration)
 {
+    // Calculate the duration of each step in microseconds
+    unsigned long stepDuration = fadeDuration * 1000UL / NUM_STEPS;
+
     // Loop through all the steps
-    for (int i = MAX_BRIGHTNESS; i >= MIN_BRIGHTNESS; i--)
+    for (int i = NUM_STEPS - 1; i >= 0; i--)
     {
         updateMode();
         if (state == changing || state == off)
@@ -215,11 +215,12 @@ void fadeDown(int ledPin, int fadeDuration)
         }
 
         // Calculate the current brightness value
-        int brightness = map(i, MIN_BRIGHTNESS, MAX_BRIGHTNESS, 0, fadeDuration);
+        int brightness = map(i, 0, NUM_STEPS, MIN_BRIGHTNESS, MAX_BRIGHTNESS);
 
         // Set the LED brightness using a timer-based approach
-        unsigned long onTime = (unsigned long)brightness * stepDuration / fadeDuration;
+        unsigned long onTime = (unsigned long)brightness * stepDuration / MAX_BRIGHTNESS;
         unsigned long offTime = stepDuration - onTime;
+
         digitalWrite(ledPin, HIGH);
         delayMicroseconds(onTime);
         digitalWrite(ledPin, LOW);
@@ -231,9 +232,11 @@ void fadeDown(int ledPin, int fadeDuration)
 
 void fadeDownAll(int fadeDuration)
 {
+    // Calculate the duration of each step in microseconds
+    unsigned long stepDuration = fadeDuration * 1000UL / NUM_STEPS;
 
     // Loop through all the steps
-    for (int i = MAX_BRIGHTNESS; i >= MIN_BRIGHTNESS; i--)
+    for (int i = NUM_STEPS - 1; i >= 0; i--)
     {
         updateMode();
         if (state == changing || state == off)
@@ -242,10 +245,10 @@ void fadeDownAll(int fadeDuration)
         }
 
         // Calculate the current brightness value
-        int brightness = map(i, MIN_BRIGHTNESS, MAX_BRIGHTNESS, 0, fadeDuration);
+        int brightness = map(i, 0, NUM_STEPS, MIN_BRIGHTNESS, MAX_BRIGHTNESS);
 
         // Set the LED brightness using a timer-based approach
-        unsigned long onTime = (unsigned long)brightness * stepDuration / fadeDuration;
+        unsigned long onTime = (unsigned long)brightness * stepDuration / MAX_BRIGHTNESS;
         unsigned long offTime = stepDuration - onTime;
 
         privateTurnOnAll();
@@ -257,7 +260,7 @@ void fadeDownAll(int fadeDuration)
     privateTurnOffAll();
 }
 
-void fadeDownArray(int ledPins[], int numPins, int fadeDuration)
+void fadeDownArray(int ledPins[], int numPins, int fadeDuration, int delayInBetween = 500)
 {
     // Loop through all the steps
     for (int i = 0; i < numPins; i++)
@@ -267,7 +270,10 @@ void fadeDownArray(int ledPins[], int numPins, int fadeDuration)
         {
             return;
         }
+
+        // Set the brightness of all the LEDs in the array using the fadeLED function
         fadeDown(ledPins[i], fadeDuration);
+        delay(delayInBetween);
     }
 }
 
@@ -290,7 +296,7 @@ void turnOffAll()
     for (int ledNum = 2; ledNum <= 15; ledNum++)
     {
         updateMode();
-        if (state == changing || state == off)
+        if (state == changing)
         {
             return;
         }
