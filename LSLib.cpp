@@ -42,7 +42,7 @@ void setupLightSculpture()
         pinMode(pin, OUTPUT);
     }
 
-    pinMode(knobPin, INPUT_PULLUP);
+    pinMode(knobPin, INPUT);
     pinMode(switchPin, INPUT_PULLUP);
 
     knobValue = analogRead(knobPin);
